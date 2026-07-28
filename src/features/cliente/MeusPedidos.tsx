@@ -7,6 +7,7 @@ import { useAuth } from '@/stores/authStore'
 import { Botao, Cartao, Selo } from '@/components/ui'
 import { tempoRelativo, reais } from '@/lib/formato'
 import { abrirWhatsApp, mensagemParaPrestador } from '@/lib/whatsapp'
+import { Avaliar } from '@/components/Avaliar'
 
 interface MeuPedido {
   id: string
@@ -31,6 +32,7 @@ interface OrcamentoRecebido {
 
 interface PrestadorResumo {
   id: string
+  usuario_id: string
   nome: string
   nota_media: number
   total_avaliacoes: number
@@ -164,7 +166,7 @@ function Orcamentos({ pedido, servico }: { pedido: MeuPedido; servico: string })
     queryFn: async () => {
       const { data } = await supabase
         .from('feed_prestadores')
-        .select('id, nome, nota_media, total_avaliacoes, nivel')
+        .select('id, usuario_id, nome, nota_media, total_avaliacoes, nivel')
         .in('id', ids)
       return (data ?? []) as PrestadorResumo[]
     },
@@ -183,6 +185,18 @@ function Orcamentos({ pedido, servico }: { pedido: MeuPedido; servico: string })
       qc.invalidateQueries({ queryKey: ['contato_pedido', pedido.id] })
     },
     onError: (e) => setErro(e instanceof Error ? e.message : 'Não deu pra escolher agora.'),
+  })
+
+  const concluir = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from('pedidos')
+        .update({ status: 'concluido' })
+        .eq('id', pedido.id)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['meus_pedidos'] }),
+    onError: () => setErro('Não deu pra marcar como feito agora.'),
   })
 
   // contato liberado depois de escolher
@@ -260,6 +274,31 @@ function Orcamentos({ pedido, servico }: { pedido: MeuPedido; servico: string })
                   >
                     Falar no WhatsApp
                   </Botao>
+                )}
+
+                {/* serviço ainda em andamento: dá pra marcar como feito */}
+                {pedido.status !== 'concluido' && (
+                  <Botao
+                    variante="contorno"
+                    bloco
+                    disabled={concluir.isPending}
+                    onClick={() => {
+                      setErro(null)
+                      concluir.mutate()
+                    }}
+                  >
+                    {concluir.isPending ? 'Salvando…' : 'O serviço já foi feito'}
+                  </Botao>
+                )}
+
+                {/* concluído: hora de avaliar */}
+                {pedido.status === 'concluido' && perfil && (
+                  <Avaliar
+                    pedidoId={pedido.id}
+                    destinatarioId={perfil.usuario_id}
+                    nomeDestinatario={perfil.nome}
+                    souCliente
+                  />
                 )}
               </div>
             ) : (

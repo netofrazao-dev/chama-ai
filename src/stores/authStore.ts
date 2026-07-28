@@ -3,67 +3,70 @@ import { supabase } from '@/lib/supabase'
 import type { Usuario } from '@/lib/database.types'
 
 // ------------------------------------------------------------
-// Autenticação por telefone (OTP).
+// Autenticação sem senha, por CELULAR ou E-MAIL.
 //
-// Fluxo pensado pra quem não é íntimo de tecnologia:
-//   1) a pessoa digita SÓ o número (nada de nome, e-mail ou senha)
-//   2) recebe um código e digita
-//   3) o nome só é pedido se ela nunca entrou antes
+// Por que os dois: o SMS depende de um provedor externo (Twilio), que
+// em conta de teste só entrega para números verificados. O e-mail o
+// próprio Supabase envia, sem depender de ninguém. Ter as duas portas
+// significa que ninguém fica de fora.
 //
-// Isso é importante: quem já tem conta não pode ser obrigado a lembrar
-// como escreveu o nome no cadastro. O número é a identidade.
-//
-// A Supabase entrega o código por SMS (Twilio/MessageBird/Vonage).
-// Para entregar por WHATSAPP — ideal pro público do Marajó — usa-se
-// Twilio Verify com canal WhatsApp por trás de uma Edge Function. O
-// fluxo abaixo não muda; só muda o provedor configurado no painel.
+// Detalhe que importa: o Chama Aí conecta as pessoas pelo WhatsApp.
+// Quem entra pelo celular já tem o número; quem entra por e-mail
+// PRECISA informar o WhatsApp, senão ninguém consegue falar com ela.
+// Por isso o cadastro pede o número nesse caso.
 // ------------------------------------------------------------
 
-// Nome que o gatilho do banco usa quando ninguém informou nada.
-// Serve de sinal de "esse perfil ainda não tem nome de verdade".
 export const NOME_PENDENTE = 'Novo usuário'
+export type MeioLogin = 'telefone' | 'email'
 
 interface AuthState {
   carregando: boolean
   usuario: Usuario | null
-  telefoneEmVerificacao: string | null
+  meioEmVerificacao: MeioLogin | null
+  destinoEmVerificacao: string | null
 
   iniciar: () => Promise<void>
-  enviarCodigo: (telefoneE164: string) => Promise<void>
+  enviarCodigo: (meio: MeioLogin, destino: string) => Promise<void>
   confirmarCodigo: (codigo: string) => Promise<void>
-  salvarNome: (nome: string) => Promise<void>
+  completarPerfil: (nome: string, whatsapp?: string) => Promise<void>
   cancelarVerificacao: () => void
   sair: () => Promise<void>
 }
 
 async function carregarPerfil(userId: string): Promise<Usuario | null> {
-  const { data } = await supabase
-    .from('usuarios')
-    .select('*')
-    .eq('id', userId)
-    .maybeSingle()
+  const { data } = await supabase.from('usuarios').select('*').eq('id', userId).maybeSingle()
   return (data as Usuario | null) ?? null
 }
 
-// A pessoa é nova se ainda não tem nome de verdade no perfil.
-export function precisaEscolherNome(u: Usuario | null): boolean {
+// Falta nome de verdade?
+export function precisaNome(u: Usuario | null): boolean {
   if (!u) return false
   const nome = (u.nome ?? '').trim()
   return nome === '' || nome === NOME_PENDENTE
 }
 
+// Falta o WhatsApp? (acontece com quem entrou por e-mail)
+export function precisaWhatsApp(u: Usuario | null): boolean {
+  if (!u) return false
+  const zap = (u.whatsapp ?? '').trim()
+  const tel = (u.telefone ?? '').trim()
+  return zap === '' && tel === ''
+}
+
+export function perfilIncompleto(u: Usuario | null): boolean {
+  return precisaNome(u) || precisaWhatsApp(u)
+}
+
 export const useAuth = create<AuthState>((set, get) => ({
   carregando: true,
   usuario: null,
-  telefoneEmVerificacao: null,
+  meioEmVerificacao: null,
+  destinoEmVerificacao: null,
 
   iniciar: async () => {
     const { data } = await supabase.auth.getSession()
     const userId = data.session?.user.id
-    set({
-      usuario: userId ? await carregarPerfil(userId) : null,
-      carregando: false,
-    })
+    set({ usuario: userId ? await carregarPerfil(userId) : null, carregando: false })
 
     supabase.auth.onAuthStateChange(async (_event, session) => {
       const id = session?.user.id
@@ -71,45 +74,58 @@ export const useAuth = create<AuthState>((set, get) => ({
     })
   },
 
-  // Só o número. Nome não entra aqui de propósito.
-  enviarCodigo: async (telefoneE164) => {
-    const { error } = await supabase.auth.signInWithOtp({
-      phone: telefoneE164,
-      options: { data: { telefone: telefoneE164 } },
-    })
+  enviarCodigo: async (meio, destino) => {
+    const { error } =
+      meio === 'telefone'
+        ? await supabase.auth.signInWithOtp({
+            phone: destino,
+            options: { data: { telefone: destino } },
+          })
+        : await supabase.auth.signInWithOtp({
+            email: destino,
+            options: { shouldCreateUser: true },
+          })
     if (error) throw error
-    set({ telefoneEmVerificacao: telefoneE164 })
+    set({ meioEmVerificacao: meio, destinoEmVerificacao: destino })
   },
 
   confirmarCodigo: async (codigo) => {
-    const telefone = get().telefoneEmVerificacao
-    if (!telefone) throw new Error('Nenhum telefone em verificação.')
-    const { data, error } = await supabase.auth.verifyOtp({
-      phone: telefone,
-      token: codigo,
-      type: 'sms',
-    })
+    const meio = get().meioEmVerificacao
+    const destino = get().destinoEmVerificacao
+    if (!meio || !destino) throw new Error('Nada em verificação.')
+
+    const { data, error } =
+      meio === 'telefone'
+        ? await supabase.auth.verifyOtp({ phone: destino, token: codigo, type: 'sms' })
+        : await supabase.auth.verifyOtp({ email: destino, token: codigo, type: 'email' })
     if (error) throw error
+
     const id = data.session?.user.id
     set({
-      telefoneEmVerificacao: null,
+      meioEmVerificacao: null,
+      destinoEmVerificacao: null,
       usuario: id ? await carregarPerfil(id) : null,
     })
   },
 
-  // Chamado só na primeira entrada, quando o perfil ainda não tem nome.
-  salvarNome: async (nome) => {
+  // Primeira entrada: nome e, se veio por e-mail, o WhatsApp.
+  completarPerfil: async (nome, whatsapp) => {
     const u = get().usuario
     if (!u) throw new Error('Ninguém logado.')
-    const { error } = await supabase
-      .from('usuarios')
-      .update({ nome: nome.trim() })
-      .eq('id', u.id)
+
+    const patch: Record<string, string> = { nome: nome.trim() }
+    if (whatsapp && whatsapp.trim()) {
+      patch.whatsapp = whatsapp.trim()
+      // sem telefone de login (entrou por e-mail): o WhatsApp vira o contato
+      if (!(u.telefone ?? '').trim()) patch.telefone = whatsapp.trim()
+    }
+
+    const { error } = await supabase.from('usuarios').update(patch).eq('id', u.id)
     if (error) throw error
-    set({ usuario: { ...u, nome: nome.trim() } })
+    set({ usuario: { ...u, ...patch } as Usuario })
   },
 
-  cancelarVerificacao: () => set({ telefoneEmVerificacao: null }),
+  cancelarVerificacao: () => set({ meioEmVerificacao: null, destinoEmVerificacao: null }),
 
   sair: async () => {
     await supabase.auth.signOut()

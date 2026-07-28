@@ -112,6 +112,21 @@ export function DetalhePedido() {
         <h1 className="mt-2 text-xl leading-tight">{pedido.subcategoria}</h1>
         {pedido.descricao && <p className="mt-2 text-tinta-suave">{pedido.descricao}</p>}
 
+        {(pedido.foto_urls?.length ?? 0) > 0 && (
+          <div className="mt-3 flex gap-2 overflow-x-auto">
+            {pedido.foto_urls.map((url) => (
+              <a key={url} href={url} target="_blank" rel="noopener noreferrer">
+                <img
+                  src={url}
+                  alt="Foto do serviço"
+                  className="h-32 w-32 shrink-0 rounded-2xl object-cover"
+                  loading="lazy"
+                />
+              </a>
+            ))}
+          </div>
+        )}
+
         <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-tinta-suave">
           {pedido.bairro && (
             <span className="inline-flex items-center gap-1">

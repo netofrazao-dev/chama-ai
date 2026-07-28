@@ -1,12 +1,11 @@
 import { useState } from 'react'
-import { Phone, MessageCircle, ArrowRight } from 'lucide-react'
-import { useAuth, precisaEscolherNome } from '@/stores/authStore'
+import { Phone, Mail, MessageCircle, ArrowRight } from 'lucide-react'
+import { useAuth, perfilIncompleto, precisaWhatsApp, type MeioLogin } from '@/stores/authStore'
 import { Botao } from '@/components/ui'
 
-// Login em até 3 telas, uma coisa por vez:
-//   1) número  2) código  3) nome (SÓ na primeira vez)
-// Quem já tem conta entra com número + código e pronto — não precisa
-// lembrar como escreveu o nome no cadastro.
+// Entrar sem senha, por celular OU e-mail.
+// O e-mail existe porque nem todo mundo consegue receber SMS — e o
+// Supabase manda e-mail sozinho, sem depender de provedor externo.
 
 function paraE164(bruto: string): string {
   const digitos = bruto.replace(/\D/g, '')
@@ -18,39 +17,41 @@ export function LoginOTP({ compacto = false }: { compacto?: boolean }) {
   const {
     enviarCodigo,
     confirmarCodigo,
-    salvarNome,
+    completarPerfil,
     cancelarVerificacao,
-    telefoneEmVerificacao,
+    meioEmVerificacao,
+    destinoEmVerificacao,
     usuario,
   } = useAuth()
 
+  const [meio, setMeio] = useState<MeioLogin>('telefone')
   const [telefone, setTelefone] = useState('')
+  const [email, setEmail] = useState('')
   const [codigo, setCodigo] = useState('')
   const [nome, setNome] = useState('')
+  const [whats, setWhats] = useState('')
   const [erro, setErro] = useState<string | null>(null)
   const [ocupado, setOcupado] = useState(false)
 
-  // qual tela mostrar
-  const etapa: 'telefone' | 'codigo' | 'nome' = precisaEscolherNome(usuario)
-    ? 'nome'
-    : telefoneEmVerificacao
+  const etapa: 'entrada' | 'codigo' | 'perfil' = perfilIncompleto(usuario)
+    ? 'perfil'
+    : meioEmVerificacao
       ? 'codigo'
-      : 'telefone'
+      : 'entrada'
 
   async function pedirCodigo() {
     setErro(null)
-    if (telefone.replace(/\D/g, '').length < 10)
+    if (meio === 'telefone' && telefone.replace(/\D/g, '').length < 10)
       return setErro('Coloque seu número com o DDD.')
+    if (meio === 'email' && !/^\S+@\S+\.\S+$/.test(email.trim()))
+      return setErro('Escreva um e-mail válido.')
+
     setOcupado(true)
     try {
-      await enviarCodigo(paraE164(telefone))
+      await enviarCodigo(meio, meio === 'telefone' ? paraE164(telefone) : email.trim())
     } catch (e) {
       const msg = e instanceof Error ? e.message : ''
-      setErro(
-        msg
-          ? `Não deu pra enviar o código. Detalhe: ${msg}`
-          : 'Não deu pra enviar o código agora. Confira o número e tente de novo.',
-      )
+      setErro(msg ? `Não deu pra enviar o código. Detalhe: ${msg}` : 'Não deu pra enviar o código agora.')
     } finally {
       setOcupado(false)
     }
@@ -70,14 +71,18 @@ export function LoginOTP({ compacto = false }: { compacto?: boolean }) {
     }
   }
 
-  async function confirmarNome() {
+  async function salvarPerfil() {
     setErro(null)
     if (nome.trim().length < 2) return setErro('Escreva seu nome.')
+    const faltaZap = precisaWhatsApp(usuario)
+    if (faltaZap && whats.replace(/\D/g, '').length < 10)
+      return setErro('Coloque seu WhatsApp com o DDD.')
+
     setOcupado(true)
     try {
-      await salvarNome(nome)
+      await completarPerfil(nome, faltaZap ? paraE164(whats) : undefined)
     } catch {
-      setErro('Não deu pra salvar seu nome. Tente de novo.')
+      setErro('Não deu pra salvar. Tente de novo.')
     } finally {
       setOcupado(false)
     }
@@ -95,23 +100,64 @@ export function LoginOTP({ compacto = false }: { compacto?: boolean }) {
         </div>
       )}
 
-      {/* ---------- 1) NÚMERO ---------- */}
-      {etapa === 'telefone' && (
+      {/* ---------- ENTRADA: celular ou e-mail ---------- */}
+      {etapa === 'entrada' && (
         <div className="space-y-4">
-          <label className="block">
-            <span className="mb-1 block font-bold">Seu número de celular</span>
-            <div className="relative">
-              <Phone className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-tinta-suave/50" />
-              <input
-                value={telefone}
-                onChange={(e) => setTelefone(e.target.value)}
-                inputMode="tel"
-                autoFocus
-                placeholder="(91) 9 9999-9999"
-                className="w-full rounded-2xl border-2 border-tinta/10 bg-white p-4 pl-12 focus:border-igarape"
-              />
-            </div>
-          </label>
+          <div className="flex rounded-2xl bg-areia-escura p-1">
+            {(
+              [
+                ['telefone', 'Pelo celular'],
+                ['email', 'Pelo e-mail'],
+              ] as [MeioLogin, string][]
+            ).map(([chave, rotulo]) => (
+              <button
+                key={chave}
+                onClick={() => {
+                  setMeio(chave)
+                  setErro(null)
+                }}
+                className={[
+                  'flex-1 rounded-xl py-2.5 text-base font-bold transition',
+                  meio === chave ? 'bg-white text-tinta shadow-card' : 'text-tinta-suave',
+                ].join(' ')}
+              >
+                {rotulo}
+              </button>
+            ))}
+          </div>
+
+          {meio === 'telefone' ? (
+            <label className="block">
+              <span className="mb-1 block font-bold">Seu número de celular</span>
+              <div className="relative">
+                <Phone className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-tinta-suave/50" />
+                <input
+                  value={telefone}
+                  onChange={(e) => setTelefone(e.target.value)}
+                  inputMode="tel"
+                  autoFocus
+                  placeholder="(91) 9 9999-9999"
+                  className="w-full rounded-2xl border-2 border-tinta/10 bg-white p-4 pl-12 focus:border-igarape"
+                />
+              </div>
+            </label>
+          ) : (
+            <label className="block">
+              <span className="mb-1 block font-bold">Seu e-mail</span>
+              <div className="relative">
+                <Mail className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-tinta-suave/50" />
+                <input
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  inputMode="email"
+                  autoCapitalize="none"
+                  autoFocus
+                  placeholder="voce@exemplo.com"
+                  className="w-full rounded-2xl border-2 border-tinta/10 bg-white p-4 pl-12 focus:border-igarape"
+                />
+              </div>
+            </label>
+          )}
 
           {erro && <p className="text-alerta">{erro}</p>}
 
@@ -119,16 +165,18 @@ export function LoginOTP({ compacto = false }: { compacto?: boolean }) {
             {ocupado ? 'Enviando…' : 'Receber meu código'}
           </Botao>
           <p className="text-center text-sm text-tinta-suave">
-            A gente manda um código no seu celular. Se já tem conta, é só entrar.
+            {meio === 'telefone'
+              ? 'A gente manda um código no seu celular.'
+              : 'A gente manda um código no seu e-mail. Olhe também o spam.'}
           </p>
         </div>
       )}
 
-      {/* ---------- 2) CÓDIGO ---------- */}
+      {/* ---------- CÓDIGO ---------- */}
       {etapa === 'codigo' && (
         <div className="space-y-4">
           <p className="text-center">
-            Enviamos um código para <b>{telefoneEmVerificacao}</b>. Digite ele aqui:
+            Enviamos um código para <b>{destinoEmVerificacao}</b>. Digite ele aqui:
           </p>
           <input
             value={codigo}
@@ -146,29 +194,53 @@ export function LoginOTP({ compacto = false }: { compacto?: boolean }) {
             onClick={cancelarVerificacao}
             className="w-full py-2 text-center text-tinta-suave underline"
           >
-            Trocar o número
+            Voltar
           </button>
         </div>
       )}
 
-      {/* ---------- 3) NOME (só na primeira vez) ---------- */}
-      {etapa === 'nome' && (
+      {/* ---------- PERFIL (só na primeira vez) ---------- */}
+      {etapa === 'perfil' && (
         <div className="space-y-4">
           <div>
             <h2 className="text-xl">Bem-vindo!</h2>
-            <p className="mt-1 text-tinta-suave">
-              Só falta uma coisa: como as pessoas devem te chamar?
-            </p>
+            <p className="mt-1 text-tinta-suave">Só faltam uns dados pra você começar.</p>
           </div>
-          <input
-            value={nome}
-            onChange={(e) => setNome(e.target.value)}
-            autoFocus
-            placeholder="Seu nome"
-            className="w-full rounded-2xl border-2 border-tinta/10 bg-white p-4 focus:border-igarape"
-          />
+
+          <label className="block">
+            <span className="mb-1 block font-bold">Como as pessoas devem te chamar?</span>
+            <input
+              value={nome}
+              onChange={(e) => setNome(e.target.value)}
+              autoFocus
+              placeholder="Seu nome"
+              className="w-full rounded-2xl border-2 border-tinta/10 bg-white p-4 focus:border-igarape"
+            />
+          </label>
+
+          {precisaWhatsApp(usuario) && (
+            <label className="block">
+              <span className="mb-1 block font-bold">Seu WhatsApp</span>
+              <div className="relative">
+                <Phone className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-tinta-suave/50" />
+                <input
+                  value={whats}
+                  onChange={(e) => setWhats(e.target.value)}
+                  inputMode="tel"
+                  placeholder="(91) 9 9999-9999"
+                  className="w-full rounded-2xl border-2 border-tinta/10 bg-white p-4 pl-12 focus:border-igarape"
+                />
+              </div>
+              <span className="mt-1 block text-sm text-tinta-suave">
+                É por aqui que as pessoas vão falar com você. Seu número só aparece para quem
+                fechar serviço com você.
+              </span>
+            </label>
+          )}
+
           {erro && <p className="text-alerta">{erro}</p>}
-          <Botao variante="acao" bloco onClick={confirmarNome} disabled={ocupado}>
+
+          <Botao variante="acao" bloco onClick={salvarPerfil} disabled={ocupado}>
             {ocupado ? 'Salvando…' : 'Pronto, pode começar'}
           </Botao>
         </div>

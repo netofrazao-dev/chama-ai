@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/stores/authStore'
 import { Botao, Cartao } from '@/components/ui'
 import { CampoVoz } from '@/components/ui/CampoVoz'
+import { FotosPedido } from '@/components/FotosPedido'
 import type { Bairro, Categoria, Subcategoria, ModoPedido } from '@/lib/database.types'
 
 // ------------------------------------------------------------
@@ -37,6 +38,7 @@ export function PedirServico({
     subcategoriaInicial ?? null,
   )
   const [descricao, setDescricao] = useState('')
+  const [fotos, setFotos] = useState<string[]>([])
   const [bairroId, setBairroId] = useState<string | null>(null)
   const [prazo, setPrazo] = useState<string>('Essa semana')
   const [modo, setModo] = useState<ModoPedido>('orcamento')
@@ -86,6 +88,7 @@ export function PedirServico({
         modo,
         subcategoria_id: subcategoriaId,
         descricao: descricao.trim() || null,
+        foto_urls: fotos,
         bairro_id: bairroId,
         prazo_desejado: prazo,
         status: 'aberto',
@@ -206,6 +209,11 @@ export function PedirServico({
             aoMudar={setDescricao}
             placeholder="Ex: meu quintal tá tomado de mato, preciso capinar tudo."
           />
+
+          <div className="pt-1">
+            <span className="mb-2 block font-bold">Quer mostrar uma foto?</span>
+            <FotosPedido urls={fotos} aoMudar={setFotos} />
+          </div>
         </div>
       )}
 

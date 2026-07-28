@@ -8,6 +8,7 @@ import { Botao, Cartao, Selo } from '@/components/ui'
 import { useMeuPrestador } from './usePrestador'
 import { reais, tempoRelativo } from '@/lib/formato'
 import { abrirWhatsApp, mensagemParaCliente } from '@/lib/whatsapp'
+import { Avaliar } from '@/components/Avaliar'
 
 interface MeuOrcamento {
   id: string
@@ -19,6 +20,7 @@ interface MeuOrcamento {
 
 interface TrabalhoFechado {
   id: string
+  cliente_id: string
   status: string
   descricao: string | null
   criado_em: string
@@ -52,7 +54,7 @@ export function MeusTrabalhos() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('pedidos')
-        .select('id, status, descricao, criado_em, subcategorias(nome), bairros(nome)')
+        .select('id, cliente_id, status, descricao, criado_em, subcategorias(nome), bairros(nome)')
         .eq('prestador_aceito_id', prestador!.id)
         .order('criado_em', { ascending: false })
       if (error) throw error
@@ -205,6 +207,18 @@ function TrabalhoFechadoCard({
     },
   })
 
+  const concluir = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from('pedidos')
+        .update({ status: 'concluido' })
+        .eq('id', trabalho.id)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['meus_trabalhos'] }),
+    onError: () => setErro('Não deu pra marcar como feito agora.'),
+  })
+
   const servico = trabalho.subcategorias?.nome ?? 'serviço'
 
   return (
@@ -257,6 +271,32 @@ function TrabalhoFechadoCard({
             Isso usa 1 contato seu.
           </p>
         </>
+      )}
+
+      {/* marcar como feito */}
+      {trabalho.status !== 'concluido' && contato && (
+        <Botao
+          variante="contorno"
+          bloco
+          className="mt-2"
+          disabled={concluir.isPending}
+          onClick={() => {
+            setErro(null)
+            concluir.mutate()
+          }}
+        >
+          {concluir.isPending ? 'Salvando…' : 'Já terminei esse serviço'}
+        </Botao>
+      )}
+
+      {/* concluído: avaliar o cliente */}
+      {trabalho.status === 'concluido' && (
+        <Avaliar
+          pedidoId={trabalho.id}
+          destinatarioId={trabalho.cliente_id}
+          nomeDestinatario={contato?.nome ?? 'o cliente'}
+          souCliente={false}
+        />
       )}
     </Cartao>
   )

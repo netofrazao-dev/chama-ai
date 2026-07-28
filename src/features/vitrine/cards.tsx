@@ -31,6 +31,7 @@ export interface FeedPedido {
   prazo_desejado: string | null
   descricao: string | null
   tem_foto: boolean
+  foto_urls: string[]
   subcategoria: string
   categoria: string
   categoria_slug: string

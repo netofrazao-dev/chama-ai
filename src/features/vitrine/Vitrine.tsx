@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Search, Plus } from 'lucide-react'
+import { Search, Plus, LogIn, HelpCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useUi } from '@/stores/uiStore'
 import { useAuth } from '@/stores/authStore'
@@ -81,12 +81,30 @@ export function Vitrine() {
           <h1 className="text-xl leading-none">Chama Aí</h1>
           <p className="text-sm text-tinta-suave">Breves · Pará</p>
         </div>
-        <button
-          aria-label="Buscar"
-          className="flex h-11 w-11 items-center justify-center rounded-full bg-white shadow-card"
-        >
-          <Search className="h-5 w-5 text-tinta" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            aria-label="Como funciona"
+            onClick={() => navegar('/como-funciona')}
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-white shadow-card"
+          >
+            <HelpCircle className="h-5 w-5 text-tinta" />
+          </button>
+          <button
+            aria-label="Buscar"
+            onClick={() => navegar('/buscar')}
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-white shadow-card"
+          >
+            <Search className="h-5 w-5 text-tinta" />
+          </button>
+          {!usuario && (
+            <button
+              onClick={() => pedirLogin('Entre para usar o Chama Aí')}
+              className="flex min-h-[44px] items-center gap-1 rounded-full bg-igarape px-4 font-bold text-white"
+            >
+              <LogIn className="h-5 w-5" /> Entrar
+            </button>
+          )}
+        </div>
       </header>
 
       {/* CTA principal — pedir serviço */}
