@@ -51,21 +51,17 @@ export function Vitrine() {
   })
 
   function tocarPrestador(p: FeedPrestador) {
-    // ver perfil é livre; contratar/falar exige login (Milestone 1 abre o perfil)
-    if (!usuario) {
-      pedirLogin(`Entre para falar com ${p.nome.split(' ')[0]}.`)
-      return
-    }
-    // TODO Milestone 1: navegar para o perfil/loja do prestador
+    // ver o perfil é livre — login só quando for interagir de verdade
+    navegar(`/prestador/${p.id}`)
   }
 
-  function tocarPedido(_p: FeedPedido) {
-    // responder a um pedido (mandar orçamento) exige login de prestador
+  function tocarPedido(p: FeedPedido) {
+    // responder a um pedido exige login (é onde se manda o preço)
     if (!usuario) {
-      pedirLogin('Entre para oferecer esse serviço.')
+      pedirLogin('Entre para oferecer esse serviço.', () => navegar(`/pedido/${p.id}`))
       return
     }
-    // TODO Milestone 1: abrir tela de enviar orçamento
+    navegar(`/pedido/${p.id}`)
   }
 
   function pedirServico() {

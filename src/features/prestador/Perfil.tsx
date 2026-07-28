@@ -4,6 +4,7 @@ import { useAuth } from '@/stores/authStore'
 import { Botao, Cartao, Selo } from '@/components/ui'
 import { useMeuPrestador } from './usePrestador'
 import { CadastroPrestador } from './CadastroPrestador'
+import { MinhaLoja } from './MinhaLoja'
 import { seloNivel } from '@/lib/formato'
 
 export function Perfil() {
@@ -83,6 +84,8 @@ export function Perfil() {
               Mudar meu cadastro
             </Botao>
           </Cartao>
+
+          {prestador.tem_loja && <MinhaLoja />}
         </>
       ) : (
         /* Convite pra virar prestador */

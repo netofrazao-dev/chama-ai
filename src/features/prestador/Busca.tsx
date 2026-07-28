@@ -1,9 +1,8 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { Search, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { useUi } from '@/stores/uiStore'
-import { useAuth } from '@/stores/authStore'
 import { CardPrestador, type FeedPrestador } from '@/features/vitrine/cards'
 
 // Busca por nome do profissional ou pelo serviço que ele faz.
@@ -20,8 +19,7 @@ function normalizar(s: string): string {
 
 export function Busca() {
   const [termo, setTermo] = useState('')
-  const pedirLogin = useUi((s) => s.pedirLogin)
-  const usuario = useAuth((s) => s.usuario)
+  const navegar = useNavigate()
 
   const { data: prestadores, isLoading } = useQuery({
     queryKey: ['feed_prestadores', 'todos'],
@@ -42,11 +40,7 @@ export function Busca() {
   }, [termo, prestadores])
 
   function tocar(p: FeedPrestador) {
-    if (!usuario) {
-      pedirLogin(`Entre para falar com ${p.nome.split(' ')[0]}.`)
-      return
-    }
-    // TODO: abrir perfil do prestador
+    navegar(`/prestador/${p.id}`)
   }
 
   return (

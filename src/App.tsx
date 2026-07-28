@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { configFaltando } from '@/lib/supabase'
 import { useAuth } from '@/stores/authStore'
 import { useUi } from '@/stores/uiStore'
 import { AppShell } from '@/components/layout/AppShell'
@@ -8,7 +9,9 @@ import { LoginGate } from '@/components/LoginGate'
 import { Vitrine } from '@/features/vitrine/Vitrine'
 import { Busca } from '@/features/prestador/Busca'
 import { Perfil } from '@/features/prestador/Perfil'
-import { MeusPedidos } from '@/features/cliente/MeusPedidos'
+import { PedidosETrabalhos } from '@/features/cliente/PedidosETrabalhos'
+import { PerfilPrestador } from '@/features/prestador/PerfilPrestador'
+import { DetalhePedido } from '@/features/prestador/DetalhePedido'
 import { PedirServico } from '@/features/cliente/PedirServico'
 import { Botao } from '@/components/ui'
 import { LogIn } from 'lucide-react'
@@ -48,6 +51,33 @@ function RotaPedir() {
   )
 }
 
+// Tela de ajuda quando falta configuração — melhor que tela branca.
+function ConfigFaltando() {
+  return (
+    <div className="tela flex min-h-dvh flex-col justify-center gap-3 py-10">
+      <h1 className="text-xl">Falta configurar o acesso</h1>
+      <p className="text-tinta-suave">
+        O app não achou o endereço e a chave do Supabase.
+      </p>
+      <div className="rounded-2xl bg-white p-4 shadow-card">
+        <p className="font-bold">No seu computador</p>
+        <p className="text-tinta-suave">
+          Copie <code>.env.example</code> para <code>.env.local</code> e preencha
+          <code> VITE_SUPABASE_URL</code> e <code>VITE_SUPABASE_ANON_KEY</code>.
+        </p>
+      </div>
+      <div className="rounded-2xl bg-white p-4 shadow-card">
+        <p className="font-bold">Na Vercel</p>
+        <p className="text-tinta-suave">
+          Settings → Environment Variables, adicione as duas, e refaça o deploy.
+          Variáveis <code>VITE_</code> entram no app no momento do build, então
+          um deploy novo é obrigatório depois de adicioná-las.
+        </p>
+      </div>
+    </div>
+  )
+}
+
 function AppInterno() {
   const { carregando, iniciar } = useAuth()
 
@@ -70,11 +100,22 @@ function AppInterno() {
           {/* A vitrine é pública — abre já mostrando gente e serviços. */}
           <Route path="/" element={<Vitrine />} />
           <Route path="/buscar" element={<Busca />} />
+          {/* Perfil do profissional é público — ver não exige login. */}
+          <Route path="/prestador/:id" element={<PerfilPrestador />} />
+          {/* Responder a um pedido exige login (é onde se manda o preço). */}
+          <Route
+            path="/pedido/:id"
+            element={
+              <ExigeLogin titulo="Este pedido">
+                <DetalhePedido />
+              </ExigeLogin>
+            }
+          />
           <Route
             path="/pedidos"
             element={
               <ExigeLogin titulo="Meus pedidos">
-                <MeusPedidos />
+                <PedidosETrabalhos />
               </ExigeLogin>
             }
           />
@@ -105,6 +146,7 @@ function AppInterno() {
 }
 
 export default function App() {
+  if (configFaltando) return <ConfigFaltando />
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
