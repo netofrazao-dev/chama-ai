@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-areia text-tinta font-sans text-base antialiased;
+    /* respeita a área segura de aparelhos com notch */
+    padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+  }
+
+  h1, h2, h3 {
+    @apply font-display font-bold text-tinta;
+  }
+
+  /* foco visível sempre — acessibilidade não é opcional */
+  :focus-visible {
+    @apply outline-none ring-4 ring-igarape/30;
+  }
+
+  /* quem pediu menos movimento, recebe menos movimento */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* container mobile-first — o produto nasce no celular */
+  .tela {
+    @apply mx-auto w-full max-w-md px-4;
+  }
+}
