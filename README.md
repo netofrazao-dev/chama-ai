@@ -71,11 +71,23 @@ Build de produção: `npm run build` (gera `dist/` já com service worker do PWA
 
 ### Gerar os tipos do banco (recomendado)
 
-`src/lib/database.types.ts` traz um subconjunto escrito à mão. Assim que o projeto estiver linkado, gere os tipos completos:
+`src/lib/database.types.ts` traz um placeholder permissivo. Para gerar os tipos reais do **seu projeto hospedado** (não use `--local`, que espera um Supabase rodando na sua máquina):
 
 ```bash
-npm run types:gen
+# 1) instale a CLI, se ainda não tem
+npm install -g supabase
+
+# 2) faça login (abre o navegador)
+supabase login
+
+# 3) gere os tipos usando o REF do seu projeto
+#    (o REF está na URL do painel: https://supabase.com/dashboard/project/SEU_REF)
+supabase gen types typescript --project-id SEU_REF > src/lib/database.types.ts
 ```
+
+No Windows (PowerShell), o comando acima funciona igual. Os scripts `types:gen` do package.json usam a variável `SUPABASE_PROJECT_ID`, mas rodar o comando direto com o REF é mais simples.
+
+> Isso é opcional. O app funciona sem gerar os tipos — eles servem para dar autocomplete e checagem no editor.
 
 ---
 

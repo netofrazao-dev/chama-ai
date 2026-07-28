@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { Search, Plus } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useUi } from '@/stores/uiStore'
@@ -14,6 +15,7 @@ export function Vitrine() {
   const [aba, setAba] = useState<Aba>('prestadores')
   const [cat, setCat] = useState<string | null>(null)
   const pedirLogin = useUi((s) => s.pedirLogin)
+  const navegar = useNavigate()
   const usuario = useAuth((s) => s.usuario)
 
   const { data: categorias } = useQuery({
@@ -67,11 +69,12 @@ export function Vitrine() {
   }
 
   function pedirServico() {
+    // se não estiver logado, pede login e já leva ao fluxo depois de entrar
     if (!usuario) {
-      pedirLogin('Entre para pedir um serviço.')
+      pedirLogin('Entre para pedir um serviço.', () => navegar('/pedir'))
       return
     }
-    // TODO Milestone 1: abrir fluxo de novo pedido
+    navegar('/pedir')
   }
 
   return (

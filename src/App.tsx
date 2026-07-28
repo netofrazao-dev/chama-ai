@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useAuth } from '@/stores/authStore'
 import { useUi } from '@/stores/uiStore'
@@ -8,6 +8,8 @@ import { LoginGate } from '@/components/LoginGate'
 import { Vitrine } from '@/features/vitrine/Vitrine'
 import { Busca } from '@/features/prestador/Busca'
 import { Perfil } from '@/features/prestador/Perfil'
+import { MeusPedidos } from '@/features/cliente/MeusPedidos'
+import { PedirServico } from '@/features/cliente/PedirServico'
 import { Botao } from '@/components/ui'
 import { LogIn } from 'lucide-react'
 
@@ -35,13 +37,14 @@ function ExigeLogin({ titulo, children }: { titulo: string; children: React.Reac
   )
 }
 
-// Placeholder das telas que chegam no Milestone 1.
-function EmBreve({ nome }: { nome: string }) {
+// Wrapper do fluxo de pedir serviço, pra ligar os botões de voltar/concluir.
+function RotaPedir() {
+  const navegar = useNavigate()
   return (
-    <div className="flex min-h-[50dvh] flex-col items-center justify-center text-center">
-      <p className="text-lg font-bold">{nome}</p>
-      <p className="mt-1 text-tinta-suave">Essa parte chega no próximo passo.</p>
-    </div>
+    <PedirServico
+      aoConcluir={() => navegar('/pedidos')}
+      aoCancelar={() => navegar('/')}
+    />
   )
 }
 
@@ -71,7 +74,7 @@ function AppInterno() {
             path="/pedidos"
             element={
               <ExigeLogin titulo="Meus pedidos">
-                <EmBreve nome="Meus pedidos" />
+                <MeusPedidos />
               </ExigeLogin>
             }
           />
@@ -80,6 +83,14 @@ function AppInterno() {
             element={
               <ExigeLogin titulo="Meu perfil">
                 <Perfil />
+              </ExigeLogin>
+            }
+          />
+          <Route
+            path="/pedir"
+            element={
+              <ExigeLogin titulo="Pedir um serviço">
+                <RotaPedir />
               </ExigeLogin>
             }
           />
