@@ -121,6 +121,10 @@ export interface Database {
         Args: { p_prestador_id: string; p_pedido_id: string }
         Returns: number
       }
+      devolver_lead: {
+        Args: { p_lead_id: string; p_motivo: string }
+        Returns: undefined
+      }
       prestador_cobre_pedido: {
         Args: { p_prestador_id: string; p_pedido_id: string }
         Returns: boolean
@@ -128,6 +132,30 @@ export interface Database {
       whatsapp_do_pedido: {
         Args: { p_pedido_id: string }
         Returns: { nome: string; whatsapp: string }[]
+      }
+      criar_compra_creditos: {
+        Args: { p_pacote_id: string }
+        Returns: string
+      }
+      confirmar_compra_creditos: {
+        Args: { p_compra_id: string }
+        Returns: undefined
+      }
+      definir_nivel_prestador: {
+        Args: { p_prestador_id: string; p_nivel: string }
+        Returns: undefined
+      }
+      definir_banimento: {
+        Args: { p_usuario_id: string; p_banido: boolean; p_motivo?: string | null }
+        Returns: undefined
+      }
+      aceitar_pedido_rapido: {
+        Args: { p_pedido_id: string }
+        Returns: boolean
+      }
+      resumo_admin: {
+        Args: Record<string, never>
+        Returns: Record<string, number>[]
       }
     }
     Enums: Record<string, string>

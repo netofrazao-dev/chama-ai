@@ -1,5 +1,11 @@
 import { useState } from 'react'
-import { Briefcase, LogOut, Star, Wallet, Pencil, CheckCircle2 } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
+import {
+  Search, Briefcase, LogOut, Star, Wallet, Pencil, CheckCircle2,
+  HelpCircle, ShieldCheck, Plus,
+} from 'lucide-react'
+import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/stores/authStore'
 import { Botao, Cartao, Selo } from '@/components/ui'
 import { useMeuPrestador } from './usePrestador'
@@ -7,10 +13,24 @@ import { CadastroPrestador } from './CadastroPrestador'
 import { MinhaLoja } from './MinhaLoja'
 import { seloNivel } from '@/lib/formato'
 
+// O perfil serve aos DOIS papéis. Quem chegou atrás de alguém para
+// resolver um problema vê primeiro o caminho de contratar; oferecer
+// serviço é um convite abaixo, não a primeira coisa da tela.
+
 export function Perfil() {
   const { usuario, sair } = useAuth()
   const { data: prestador, isLoading } = useMeuPrestador()
   const [editando, setEditando] = useState(false)
+  const navegar = useNavigate()
+
+  const { data: souAdmin } = useQuery({
+    queryKey: ['sou_admin', usuario?.id],
+    enabled: Boolean(usuario?.id),
+    queryFn: async () => {
+      const { data } = await supabase.rpc('resumo_admin')
+      return ((data ?? []) as unknown[]).length > 0
+    },
+  })
 
   if (editando) {
     return (
@@ -32,14 +52,33 @@ export function Perfil() {
     <div className="space-y-4 pb-4">
       <header className="pt-2">
         <h1 className="text-xl">{usuario?.nome}</h1>
-        <p className="text-tinta-suave">{usuario?.telefone}</p>
+        <p className="text-tinta-suave">{usuario?.whatsapp || usuario?.telefone}</p>
       </header>
 
+      {/* ---- Caminho de quem contrata: sempre primeiro ---- */}
+      <Cartao>
+        <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-tucupi text-white">
+          <Search className="h-6 w-6" />
+        </div>
+        <h2 className="text-lg">Precisa de alguém?</h2>
+        <p className="mt-1 text-tinta-suave">
+          Conte o que você precisa e receba o preço de vários profissionais aqui de Breves.
+        </p>
+        <div className="mt-3 flex gap-2">
+          <Botao variante="acao" bloco icone={<Plus />} onClick={() => navegar('/pedir')}>
+            Pedir um serviço
+          </Botao>
+          <Botao variante="contorno" onClick={() => navegar('/pedidos')}>
+            Meus pedidos
+          </Botao>
+        </div>
+      </Cartao>
+
+      {/* ---- Caminho de quem trabalha ---- */}
       {isLoading ? (
         <div className="h-32 animate-pulse rounded-2xl bg-areia-escura" />
       ) : prestador ? (
         <>
-          {/* Painel resumido do prestador */}
           <Cartao>
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-lg">Meu trabalho</h2>
@@ -74,39 +113,67 @@ export function Perfil() {
               </p>
             )}
 
-            <Botao
-              variante="contorno"
-              bloco
-              className="mt-3"
-              icone={<Pencil className="h-5 w-5" />}
-              onClick={() => setEditando(true)}
-            >
-              Mudar meu cadastro
-            </Botao>
+            <div className="mt-3 flex gap-2">
+              <Botao
+                variante="principal"
+                bloco
+                icone={<Wallet className="h-5 w-5" />}
+                onClick={() => navegar('/creditos')}
+              >
+                Comprar contatos
+              </Botao>
+              <Botao
+                variante="contorno"
+                icone={<Pencil className="h-5 w-5" />}
+                onClick={() => setEditando(true)}
+              >
+                Editar
+              </Botao>
+            </div>
           </Cartao>
 
           {prestador.tem_loja && <MinhaLoja />}
         </>
       ) : (
-        /* Convite pra virar prestador */
         <Cartao>
-          <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-tucupi text-white">
+          <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-igarape text-white">
             <Briefcase className="h-6 w-6" />
           </div>
-          <h2 className="text-lg">Você faz algum serviço?</h2>
+          <h2 className="text-lg">Você também faz algum serviço?</h2>
           <p className="mt-1 text-tinta-suave">
-            Cadastre o que você sabe fazer e apareça para quem está procurando aqui em Breves. É de
-            graça, e você ganha os primeiros contatos sem pagar nada.
+            Cadastre o que você sabe fazer e apareça para quem procura aqui em Breves. É de graça,
+            e você começa com 10 contatos sem pagar nada.
           </p>
-          <Botao variante="acao" bloco className="mt-3" onClick={() => setEditando(true)}>
+          <Botao variante="principal" bloco className="mt-3" onClick={() => setEditando(true)}>
             Quero oferecer meu serviço
           </Botao>
         </Cartao>
       )}
 
-      <Botao variante="suave" bloco icone={<LogOut className="h-5 w-5" />} onClick={() => sair()}>
-        Sair
-      </Botao>
+      {/* ---- Rodapé ---- */}
+      <div className="space-y-2 pt-2">
+        {souAdmin && (
+          <Botao
+            variante="contorno"
+            bloco
+            icone={<ShieldCheck className="h-5 w-5" />}
+            onClick={() => navegar('/admin')}
+          >
+            Administração
+          </Botao>
+        )}
+        <Botao
+          variante="suave"
+          bloco
+          icone={<HelpCircle className="h-5 w-5" />}
+          onClick={() => navegar('/como-funciona')}
+        >
+          Como funciona
+        </Botao>
+        <Botao variante="suave" bloco icone={<LogOut className="h-5 w-5" />} onClick={() => sair()}>
+          Sair
+        </Botao>
+      </div>
     </div>
   )
 }

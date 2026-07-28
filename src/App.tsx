@@ -13,6 +13,8 @@ import { PedidosETrabalhos } from '@/features/cliente/PedidosETrabalhos'
 import { PerfilPrestador } from '@/features/prestador/PerfilPrestador'
 import { DetalhePedido } from '@/features/prestador/DetalhePedido'
 import { ComoFunciona } from '@/features/ajuda/ComoFunciona'
+import { ComprarCreditos } from '@/features/prestador/ComprarCreditos'
+import { Admin } from '@/features/admin/Admin'
 import { PedirServico } from '@/features/cliente/PedirServico'
 import { Botao } from '@/components/ui'
 import { LogIn } from 'lucide-react'
@@ -105,6 +107,22 @@ function AppInterno() {
           <Route path="/prestador/:id" element={<PerfilPrestador />} />
           {/* Explicação da cobrança — pública, ninguém precisa entrar pra ler. */}
           <Route path="/como-funciona" element={<ComoFunciona />} />
+          <Route
+            path="/creditos"
+            element={
+              <ExigeLogin titulo="Comprar contatos">
+                <ComprarCreditos />
+              </ExigeLogin>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <ExigeLogin titulo="Administração">
+                <Admin />
+              </ExigeLogin>
+            }
+          />
           {/* Responder a um pedido exige login (é onde se manda o preço). */}
           <Route
             path="/pedido/:id"

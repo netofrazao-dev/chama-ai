@@ -9,6 +9,7 @@ import { useMeuPrestador } from './usePrestador'
 import { reais, tempoRelativo } from '@/lib/formato'
 import { abrirWhatsApp, mensagemParaCliente } from '@/lib/whatsapp'
 import { Avaliar } from '@/components/Avaliar'
+import { ModoRapido } from './ModoRapido'
 
 interface MeuOrcamento {
   id: string
@@ -88,6 +89,8 @@ export function MeusTrabalhos() {
         <p className="text-tinta-suave">O que você mandou e o que já fechou.</p>
       </header>
 
+      <ModoRapido />
+
       <div className="flex items-center gap-2 rounded-2xl bg-white p-4 shadow-card">
         <Wallet className="h-6 w-6 text-tucupi" />
         <div className="flex-1">
@@ -100,6 +103,9 @@ export function MeusTrabalhos() {
             </p>
           )}
         </div>
+        <Botao variante="contorno" onClick={() => navegar('/creditos')}>
+          Comprar
+        </Botao>
       </div>
 
       {/* Trabalhos fechados */}

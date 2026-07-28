@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { X } from 'lucide-react'
 import { useUi } from '@/stores/uiStore'
 import { useAuth } from '@/stores/authStore'
@@ -10,10 +11,18 @@ import { LoginOTP } from '@/features/auth/LoginOTP'
 export function LoginGate() {
   const { loginAberto, motivoLogin, fecharLogin, consumirAcaoPendente } = useUi()
   const usuario = useAuth((s) => s.usuario)
+  const navegar = useNavigate()
+  const { pathname } = useLocation()
 
   useEffect(() => {
-    if (loginAberto && usuario) consumirAcaoPendente()
-  }, [loginAberto, usuario, consumirAcaoPendente])
+    if (!loginAberto || !usuario) return
+    const tinhaAcao = Boolean(useUi.getState().acaoPendente)
+    consumirAcaoPendente()
+    // Sem ação pendente, quem acabou de entrar deve cair no feed —
+    // é lá que se vê o que existe. Cair no perfil dá a impressão
+    // errada de que o app é só para quem quer trabalhar.
+    if (!tinhaAcao && pathname === '/perfil') navegar('/')
+  }, [loginAberto, usuario, consumirAcaoPendente, navegar, pathname])
 
   if (!loginAberto) return null
 
